@@ -2,26 +2,148 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>3-Tier App</title>
+  <title>3-Tier App with RDS</title>
   <style>
-    body { font-family: Arial; text-align: center; margin-top: 80px; }
-    h1 { color: #2c3e50; }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 50px;
+      background-color: #f5f7fa;
+    }
+    h1 {
+      color: #2c3e50;
+    }
+    .card {
+      background: white;
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-align: left;
+    }
+    .status {
+      font-size: 18px;
+      margin-bottom: 15px;
+    }
+    .success {
+      color: #27ae60;
+      font-weight: bold;
+    }
+    .error {
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #3498db;
+      color: white;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
   </style>
 </head>
 <body>
-  <h1>Frontend is Working!</h1>
-  <p>This is a simple 3-tier application running on EC2 + Docker Compose.</p>
-  <p id="backend-status">Checking backend...</p>
+  <h1>3-Tier Application</h1>
+  <p>Frontend → Backend → Amazon RDS</p>
+
+  <div class="card">
+    <div class="status" id="health-status">Checking backend & database...</div>
+    
+    <button onclick="setupDatabase()">1. Setup Database (Create Table)</button>
+    <button onclick="loadVisitors()">2. Load Data from RDS</button>
+
+    <div id="visitors-section" style="display:none; margin-top: 20px;">
+      <h3>Data from Amazon RDS:</h3>
+      <table id="visitors-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Visited At</th>
+          </tr>
+        </thead>
+        <tbody id="visitors-body">
+        </tbody>
+      </table>
+    </div>
+  </div>
 
   <script>
+    // Check health + database connection
     fetch('/api/health')
       .then(res => res.json())
       .then(data => {
-        document.getElementById('backend-status').innerText = 'Backend Status: ' + data.status;
+        const statusDiv = document.getElementById('health-status');
+        if (data.database === 'Connected to RDS') {
+          statusDiv.innerHTML = `
+            <span class="success">Backend is healthy</span><br>
+            <span class="success">Successfully connected to Amazon RDS</span><br>
+            <small>Server Time: ${data.current_time}</small>
+          `;
+        } else {
+          statusDiv.innerHTML = `<span class="error">Database connection failed</span><br>${data.error || ''}`;
+        }
       })
       .catch(err => {
-        document.getElementById('backend-status').innerText = 'Backend not reachable';
+        document.getElementById('health-status').innerHTML = 
+          '<span class="error">Backend not reachable</span>';
       });
+
+    // Create table + insert test data
+    function setupDatabase() {
+      fetch('/api/setup')
+        .then(res => res.json())
+        .then(data => {
+          alert(data.message || data.error);
+        })
+        .catch(err => alert('Error: ' + err.message));
+    }
+
+    // Load data from RDS
+    function loadVisitors() {
+      fetch('/api/visitors')
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.getElementById('visitors-body');
+          tbody.innerHTML = '';
+
+          if (data.data && data.data.length > 0) {
+            data.data.forEach(row => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td>${row.id}</td>
+                <td>${row.name}</td>
+                <td>${new Date(row.visited_at).toLocaleString()}</td>
+              `;
+              tbody.appendChild(tr);
+            });
+            document.getElementById('visitors-section').style.display = 'block';
+          } else {
+            alert('No data found. Please click "Setup Database" first.');
+          }
+        })
+        .catch(err => alert('Error loading data: ' + err.message));
+    }
   </script>
 </body>
 </html>
