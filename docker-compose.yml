@@ -9,15 +9,14 @@ services:
     image: 325381792777.dkr.ecr.ap-south-1.amazonaws.com/backend:latest
     ports:
       - "3000:3000"
-    environment:
-      - DB_HOST=your-rds-endpoint.ap-south-1.rds.amazonaws.com
-      - DB_USER=admin
-      - DB_PASSWORD=your-password-here
-      - DB_NAME=myapp
+    env_file:
+      - .env
     restart: always
 
   prometheus:
     image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
     restart: always
